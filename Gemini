@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="fr-CA">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Comparateur Interactif : Financement de l'alimentation scolaire au Canada</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: #F8FAFC;
+      color: #0F172A;
+    }
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .sort-header {
+      cursor: pointer;
+      user-select: none;
+    }
+    .sort-header:hover {
+      background-color: #F1F5F9;
+    }
+    tr.row-expandable {
+      cursor: pointer;
+      transition: background-color 0.15s ease;
+    }
+    tr.row-expandable:hover {
+      background-color: #F1F5F9;
+    }
+    tr.row-selected {
+      background-color: #EFF6FF !important;
+    }
+  </style>
+</head>
+<body class="min-h-screen antialiased">
+
+  <!-- En-tête -->
+  <header class="bg-slate-900 text-white border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/20 text-blue-300 border border-blue-400/30 mb-2">
+            Vérification des données · Mise à jour novembre 2026
+          </div>
+          <h1 class="text-2xl sm:text-3xl font-bold tracking-tight">
+            Coalition (401 M$) vs Plans d'action officiels (Canada.ca)
+          </h1>
+          <p class="text-slate-300 text-sm sm:text-base mt-1 max-w-3xl">
+            Comparaison interactive des investissements provinciaux/territoriaux, fédéraux (PNAS) et municipaux en alimentation scolaire. Cliquez sur une province pour ouvrir sa fiche complète et ses sources officielles.
+          </p>
+        </div>
+
+        <!-- Bascule d'unité et année -->
+        <div class="flex flex-wrap items-center gap-2 self-start md:self-center">
+          <div class="bg-slate-800 p-1 rounded-lg border border-slate-700 flex items-center text-xs font-medium">
+            <button id="btnUnitShort" type="button" class="px-3 py-1.5 rounded-md bg-blue-600 text-white transition">
+              M$ / k$ abrégé
+            </button>
+            <button id="btnUnitExact" type="button" class="px-3 py-1.5 rounded-md text-slate-300 hover:text-white transition">
+              Montants exacts ($)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation par onglets -->
+      <div class="flex flex-wrap gap-2 mt-6 border-t border-slate-800 pt-4">
+        <button id="tabBtnPT" type="button" class="tab-btn px-4 py-2 rounded-lg text-sm font-semibold bg-white text-slate-900 shadow-sm transition">
+          1. Tableau Provincial &amp; Fédéral (13 P/T)
+        </button>
+        <button id="tabBtnMun" type="button" class="tab-btn px-4 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition">
+          2. Détail Municipal (Villes vérifiées)
+        </button>
+        <button id="tabBtnFed" type="button" class="tab-btn px-4 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition">
+          3. Trajectoire Fédérale (2024–2030)
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- Cartes de synthèse dynamique (KPI) -->
+    <section id="kpiSection" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+        <div class="text-xs font-semibold uppercase tracking-wider text-slate-500">Coalition P/T (Graphique 1)</div>
+        <div id="kpiCoalitionPT" class="text-2xl font-bold text-slate-900 mono mt-1">374,17 M$</div>
+        <div id="kpiCoalitionSub" class="text-xs text-slate-500 mt-1">Sur 13 juridictions affichées (révisé à 358 M$ PTM en nov. 2026)</div>
+      </div>
+
+      <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+        <div class="text-xs font-semibold uppercase tracking-wider text-emerald-700">Officiel P/T (<span id="kpiYearLabel1">2025-2026</span>)</div>
+        <div id="kpiOfficialPT" class="text-2xl font-bold text-emerald-700 mono mt-1">371,51 M$</div>
+        <div id="kpiDiffPT" class="text-xs text-slate-600 mt-1">Écart net : -2,67 M$ (après report du 19 M$ au N.-B.)</div>
+      </div>
+
+      <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+        <div class="text-xs font-semibold uppercase tracking-wider text-blue-700">Transferts Fédéraux PNAS (<span id="kpiYearLabel2">2025-2026</span>)</div>
+        <div id="kpiOfficialFed" class="text-2xl font-bold text-blue-700 mono mt-1">140,24 M$</div>
+        <div class="text-xs text-slate-500 mt-1">Ententes bilatérales EDSC (exclus du graphique de la Coalition)</div>
+      </div>
+
+      <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+        <div class="text-xs font-semibold uppercase tracking-wider text-purple-700">Municipal (Coalition vs Vérifié)</div>
+        <div id="kpiMunicipal" class="text-2xl font-bold text-purple-700 mono mt-1">26,93 M$ → 31,92 M$</div>
+        <div class="text-xs text-slate-500 mt-1">+5,00 M$ approuvés par Toronto en mars 2025 (total Toronto : 31,02 M$)</div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         ONGLET 1 : TABLEAU PROVINCIAL & FÉDÉRAL
+         ========================================== -->
+    <section id="viewPT" class="space-y-4">
+
+      <!-- Barre de filtres -->
+      <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div class="flex flex-wrap items-center gap-3">
+          <!-- Sélecteur d'année -->
+          <div class="flex items-center gap-2">
+            <label for="selectYear" class="text-xs font-semibold text-slate-600 uppercase">Exercice officiel :</label>
+            <select id="selectYear" class="text-sm rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="2025-26" selected>2025-2026 (Année de réf. Coalition)</option>
+              <option value="2024-25">2024-2025 (An 1 des ententes)</option>
+              <option value="2026-27">2026-2027 (An 3 prévisionnel)</option>
+            </select>
+          </div>
+
+          <!-- Filtre Région -->
+          <div class="flex items-center gap-2">
+            <label for="selectRegion" class="text-xs font-semibold text-slate-600 uppercase">Région :</label>
+            <select id="selectRegion" class="text-sm rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="ALL">Toutes les régions (13)</option>
+              <option value="Atlantique">Atlantique (4)</option>
+              <option value="Centre">Québec &amp; Ontario (2)</option>
+              <option value="Ouest">Prairies &amp; C.-B. (4)</option>
+              <option value="Territoires">Territoires (3)</option>
+            </select>
+          </div>
+
+          <!-- Filtre Statut -->
+          <div class="flex items-center gap-2">
+            <label for="selectStatus" class="text-xs font-semibold text-slate-600 uppercase">Concordance :</label>
+            <select id="selectStatus" class="text-sm rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="ALL">Tous les statuts</option>
+              <option value="exact">Chiffre exact / Quasi identique</option>
+              <option value="ecart">Écart majeur (N.-B., Î.-P.-É., SK, T.-N.-L.)</option>
+              <option value="perimetre">Différence de périmètre (C.-B., ON, Territoires)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Recherche et réinitialisation -->
+        <div class="flex items-center gap-2">
+          <div class="relative flex-1 sm:w-64">
+            <input id="searchInput" type="text" placeholder="Chercher province, programme..." class="w-full text-sm rounded-lg border border-slate-300 pl-3 pr-8 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <button id="btnResetFilters" type="button" class="text-xs font-medium text-slate-600 hover:text-slate-900 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 transition">
+            Réinitialiser
+          </button>
+        </div>
+      </div>
+
+      <!-- Légende rapide des pastilles -->
+      <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 px-1">
+        <div class="flex flex-wrap items-center gap-3">
+          <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> <strong>Exact / Quasi identique :</strong> écart minime (&lt;1 %)</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> <strong>Périmètre :</strong> programmes exclus/inclus (ex. écoles privées, infra, SAC)</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> <strong>Écart :</strong> report de programme, fédéral mélangé ou sous-estimation</span>
+        </div>
+        <div class="text-slate-500 italic">Astuce : cliquez sur un en-tête pour trier ou sur une ligne pour voir les détails.</div>
+      </div>
+
+      <!-- Tableau principal -->
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                <th data-sort="name" class="sort-header py-3.5 pl-4 pr-2">Province / Territoire <span class="sort-icon" data-col="name"></span></th>
+                <th data-sort="coalitionPT" class="sort-header py-3.5 px-3 text-right">Coalition P/T <span class="sort-icon" data-col="coalitionPT">↓</span></th>
+                <th data-sort="officialPT" class="sort-header py-3.5 px-3 text-right text-emerald-800">Officiel P/T <span class="sort-icon" data-col="officialPT"></span></th>
+                <th data-sort="diffPT" class="sort-header py-3.5 px-3 text-right">Écart P/T <span class="sort-icon" data-col="diffPT"></span></th>
+                <th data-sort="officialFed" class="sort-header py-3.5 px-3 text-right text-blue-800">Fédéral PNAS <span class="sort-icon" data-col="officialFed"></span></th>
+                <th data-sort="coalitionMun" class="sort-header py-3.5 px-3 text-right text-purple-800">Municipal <span class="sort-icon" data-col="coalitionMun"></span></th>
+                <th data-sort="perStudent" class="sort-header py-3.5 px-3 text-right">$/élève/j <span class="sort-icon" data-col="perStudent"></span></th>
+                <th class="py-3.5 pl-3 pr-4">Statut &amp; Raison de l'écart</th>
+              </tr>
+            </thead>
+            <tbody id="ptTableBody" class="divide-y divide-slate-200 text-sm">
+              <!-- Rempli par JS -->
+            </tbody>
+            <tfoot id="ptTableFoot" class="bg-slate-900 text-white font-semibold text-sm">
+              <!-- Rempli par JS -->
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ==========================================
+         ONGLET 2 : DÉTAIL MUNICIPAL
+         ========================================== -->
+    <section id="viewMun" class="hidden space-y-4">
+      <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900">Ventilation des financements municipaux au Canada</h2>
+            <p class="text-sm text-slate-600 mt-0.5">
+              La Coalition affiche <strong>26 926 521 $</strong> au municipal. Nos vérifications confirment <strong>31 673 579 $+</strong> après la hausse de 5,0 M$ votée par Toronto en mars 2025.
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <label for="selectMunProv" class="text-xs font-semibold text-slate-600 uppercase">Province :</label>
+            <select id="selectMunProv" class="text-sm rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 font-medium text-slate-900">
+              <option value="ALL">Toutes les provinces (4)</option>
+              <option value="ON">Ontario (8 municipalités)</option>
+              <option value="BC">Colombie-Britannique (Vancouver)</option>
+              <option value="SK">Saskatchewan</option>
+              <option value="NS">Nouvelle-Écosse</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50 border-y border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                <th class="py-3 pl-4 pr-2">Municipalité</th>
+                <th class="py-3 px-3">Province</th>
+                <th class="py-3 px-3 text-right">Montant Coalition (2025)</th>
+                <th class="py-3 px-3 text-right text-purple-800">Montant Officiel Vérifié</th>
+                <th class="py-3 pl-3 pr-4">Programme, Organisme &amp; Source Officielle</th>
+              </tr>
+            </thead>
+            <tbody id="munTableBody" class="divide-y divide-slate-200 text-sm">
+              <!-- Rempli par JS -->
+            </tbody>
+            <tfoot class="bg-slate-900 text-white font-semibold text-sm">
+              <tr>
+                <td class="py-3.5 pl-4 pr-2" colspan="2">Total Municipal (10+ municipalités)</td>
+                <td id="munFootCoalition" class="py-3.5 px-3 text-right mono">26 926 521 $</td>
+                <td id="munFootVerified" class="py-3.5 px-3 text-right mono text-purple-300">31 919 521 $</td>
+                <td class="py-3.5 pl-3 pr-4 text-xs font-normal text-slate-300">Inclut 31,67 M$ vérifiés (ON + Vancouver + Antigonish) et 245,9 k$ du chiffrier Coalition (SK + reste N.-É.).</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         ONGLET 3 : TRAJECTOIRE FÉDÉRALE (2024-2030)
+         ========================================== -->
+    <section id="viewFed" class="hidden space-y-4">
+      <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm space-y-4">
+        <div>
+          <h2 class="text-lg font-bold text-slate-900">Architecture complète du financement fédéral (Budget 2024 &amp; Loi C-15)</h2>
+          <p class="text-sm text-slate-600 mt-1">
+            Le graphique de la Coalition exclut volontairement les fonds fédéraux. Voici comment le <strong>1,0 milliard $ sur 5 ans</strong> (Budget 2024) et la pérennisation à <strong>216,6 M$/an dès 2029-2030</strong> (Loi sur le Programme national d'alimentation scolaire, sanctionnée le 26 mars 2026 via le projet de loi C-15) se répartissent entre les transferts P/T et les volets autochtones/infrastructures.
+          </p>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-sm">
+            <thead>
+              <tr class="bg-slate-50 border-y border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                <th class="py-3 pl-4 pr-2">Volet Fédéral</th>
+                <th class="py-3 px-3 text-right">2024-2025</th>
+                <th class="py-3 px-3 text-right">2025-2026</th>
+                <th class="py-3 px-3 text-right">2026-2027</th>
+                <th class="py-3 px-3 text-right">2027-2028</th>
+                <th class="py-3 px-3 text-right">2028-2029</th>
+                <th class="py-3 pl-3 pr-4 text-right text-blue-800">2029-2030+ (Permanent)</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+              <tr class="bg-blue-50/50 font-semibold text-slate-900">
+                <td class="py-3.5 pl-4 pr-2">Enveloppe globale PNAS (Budget 2024 / Loi C-15)</td>
+                <td class="py-3.5 px-3 text-right mono">79 000 000 $</td>
+                <td class="py-3.5 px-3 text-right mono">201 000 000 $</td>
+                <td class="py-3.5 px-3 text-right mono">218 000 000 $</td>
+                <td class="py-3.5 px-3 text-right mono">241 000 000 $</td>
+                <td class="py-3.5 px-3 text-right mono">261 000 000 $</td>
+                <td class="py-3.5 pl-3 pr-4 text-right mono text-blue-700">216 600 000 $ / an</td>
+              </tr>
+              <tr>
+                <td class="py-3 pl-6 pr-2 text-slate-700">↳ Ententes bilatérales P/T (13 provinces &amp; territoires, EDSC)</td>
+                <td class="py-3 px-3 text-right mono">70 119 934 $</td>
+                <td class="py-3 px-3 text-right mono font-semibold text-blue-700">140 239 869 $</td>
+                <td class="py-3 px-3 text-right mono font-semibold text-blue-700">140 239 869 $</td>
+                <td class="py-3 px-3 text-right text-slate-500">Renouvellement</td>
+                <td class="py-3 px-3 text-right text-slate-500">Renouvellement</td>
+                <td class="py-3 pl-3 pr-4 text-right text-slate-600">Inclus dans 216,6 M$</td>
+              </tr>
+              <tr>
+                <td class="py-3 pl-6 pr-2 text-slate-700">↳ Partenaires autochtones (fondé sur les distinctions) &amp; fonctionnement</td>
+                <td class="py-3 px-3 text-right mono">8 880 066 $</td>
+                <td class="py-3 px-3 text-right mono">60 760 131 $</td>
+                <td class="py-3 px-3 text-right mono">77 760 131 $</td>
+                <td class="py-3 px-3 text-right text-slate-500">À ventiler</td>
+                <td class="py-3 px-3 text-right text-slate-500">À ventiler</td>
+                <td class="py-3 pl-3 pr-4 text-right text-slate-600">Inclus dans 216,6 M$</td>
+              </tr>
+              <tr>
+                <td class="py-3 pl-4 pr-2 font-medium text-slate-800">Fonds d'infrastructure alimentaire scolaire (AAC, hors PNAS)</td>
+                <td class="py-3 px-3 text-center mono text-slate-700" colspan="3">Jusqu'à 20 200 000 $ sur 3 ans (2024-2025 à 2026-2027)</td>
+                <td class="py-3 px-3 text-right text-slate-400">—</td>
+                <td class="py-3 px-3 text-right text-slate-400">—</td>
+                <td class="py-3 pl-3 pr-4 text-right text-slate-400">—</td>
+              </tr>
+              <tr>
+                <td class="py-3 pl-4 pr-2 font-medium text-slate-800">Autres transferts fédéraux existants (SAC : Principe de Jordan Yukon + Mieux-être Nunavut)</td>
+                <td class="py-3 px-3 text-right mono">~7 446 646 $</td>
+                <td class="py-3 px-3 text-right mono">~7 446 646 $</td>
+                <td class="py-3 px-3 text-right mono">~7 446 646 $</td>
+                <td class="py-3 px-3 text-right text-slate-500">Continu</td>
+                <td class="py-3 px-3 text-right text-slate-500">Continu</td>
+                <td class="py-3 pl-3 pr-4 text-right text-slate-500">Continu</td>
+              </tr>
+            </tbody>
+          </table>
+  
